@@ -4,10 +4,7 @@ import {Container} from '@material-ui/core'
 import Formulario from '../components/creation'
 
 export default function Home() {
-  const onClick=(e)=>{
-    e.preventDefault();
-    //getDBData()
-  }
+
   return (
     <div >
       <Head>

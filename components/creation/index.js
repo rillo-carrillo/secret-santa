@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import {TextField,Button} from '@material-ui/core'
 import {makeStyles} from '@material-ui/core/styles'
+import {createEventAndUsers} from '../../firebase/init'
 const useStyles = makeStyles((theme) => ({
     root: {
       '& > *': {
@@ -28,7 +29,8 @@ function Formulario() {
     let participante = { 
         id:'',
         user:'',
-        email:''
+        email:'',
+        fid:''
     }
     const [users,setUsers] = useState(
         {admin:participante,
@@ -36,15 +38,15 @@ function Formulario() {
         ],
         count:0
     })
+    const [status,setStatus] = useState()
     const handleAdmin=({target:{name,value}})=>{
         if(name==="user"){
-            participante.user=value;
+            users.admin.user=value;
         }
         if(name==='email'){
-            participante.email=value
+            users.admin.email=value
         }
-        setUsers({...users,
-        admin:participante})
+        setUsers({...users})
     }
     const addParticipante=()=>{
         participante.id=users.count
@@ -66,21 +68,30 @@ function Formulario() {
         setUsers({...users,
         })
     }
+    const handleSubmit=()=>{
+        if(users.admin.user.length>0 && users.admin.email.length>0){
+            createEventAndUsers(users).then(event=>setStatus(event))
+        }
+    }
+
     const classes = useStyles()
-    console.log(users)
+    console.log(status)
     return (
         
         <div>
-            <form className={classes.root} noValidate autoComplete='false'>
+            <form className={classes.root} autoComplete='false'>
+                {status?'Evento Creado '+status.id:''}
+                <br/>
                 <Admin handleAdmin={handleAdmin}/>
-                <Button onClick={addParticipante}>Agregar Participante</Button>
+                <Button onClick={addParticipante} color="primary" variant="contained">Agregar Participante</Button>
                 <br/>
                 {users.participantes.map(part=>{
                     return <Participantes key={part.id} id={part.id} handleParticipante={handleParticipante}/>
                 })}
-                
+                <br/>
+                <Button variant='contained' disabled={users.count>0?false:true} onClick={handleSubmit}>Enviar</Button>
             </form>
-            <Button variant='contained'>Enviar</Button>
+            
         </div>
     )
 }
