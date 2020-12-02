@@ -48,8 +48,34 @@ const queryEmail = (participante)=>{
     })
     .catch(err => console.error(err))
 }
-
-const createEvento = (evento)=>{
+const findSanta=(part,uid)=>{
+  return part.santa === uid
+}
+export async function getDetails(id,uid){
+  return db.collection('evento').doc(id)
+  .get()
+  .then(doc=>{
+    const {participantes} = doc.data()
+    const santa = participantes.find(party => party.santa === uid)
+    return db.collection('participante').doc(santa.santa).get()
+    .then(santaDB=>{
+      return db.collection('participante').doc(santa.target).get()
+      .then(target=>{
+        return {
+          santa:{
+            semail:santaDB.data().email,
+            suser:santaDB.data().user
+          },
+          target:{
+            temail:target.data().email,
+            tuser:target.data().user
+          }
+        }  
+      })
+    })
+  })
+}
+const createEvento = async (evento)=>{
   const entry ={
     admin:evento.admin,
     participantes:evento.participantes
@@ -81,39 +107,49 @@ const crearParejas=(pairs,array)=>{
     }
   }
 }
-export function createEventAndUsers(users){
+export async function createEventAndUsers(users){
   const event = {
-      admin:'',
-      participantes:[],
-      id:''
-    }
+    admin:'',
+    participantes:[],
+    id:''
+  }
   const participantes=[users.admin]
-  users.participantes.map(participante=>{
-    
+  users.participantes.map(participante=>{  
     participantes.push(participante)
   })
-  return Promise.resolve(
-  participantes.map(participante=>{
-    queryEmail(participante).then(id=>{
-      if(Array.isArray(id)){
-        participante.fid=id[0]
-      } else{
-        participante.fid=id
-      }
-      })
-  })).then(()=>{
-    event.admin=participantes[0].fid
-    mezclarParticipantes(participantes)
-    crearParejas(event.participantes,participantes)
-    return createEvento(event).then(id=> {
-      participantes.map(participante=>{
-        fetch(`https://us-central1-secretsanta-e2385.cloudfunctions.net/sendMail?dest=${participante.email}&event=${id}&user=${participante.fid}`)
-        .then(res=>console.log(res))
-      })
-      return {
-        ...event,
-        id:id
+  const fids = await Promise.all(participantes.map(participante=>{
+    return queryEmail(participante)
+  })).catch(error=>console.log(error))
+  fids.map((fid,i)=>{
+    if(Array.isArray(fid)){
+      participantes[i].fid=fid[0]
+    } else {
+      participantes[i].fid=fid
     }
   })
+  event.admin=participantes[0].fid
+  mezclarParticipantes(participantes)
+  crearParejas(event.participantes,participantes)
+  const res = await createEvento(event).then(id=> {
+        
+        return {
+          ...event,
+          id:id
+      }}).catch(error=>console.log(error))
+  return res
+}
+export async function getPaths(){
+  return db.collection('evento').get().then(doc=>{
+    return doc.docs.map(evento=>{
+      const id = evento.id
+      const { participantes } = evento.data()
+      const paths= participantes.map(participante=>{
+        return {
+          id: id,
+          uid: participante.santa
+        }
+      })
+      return paths
+    })
   })
 }
